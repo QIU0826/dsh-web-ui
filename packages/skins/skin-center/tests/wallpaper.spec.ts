@@ -89,7 +89,7 @@ beforeEach(() => {
 })
 
 describe('WallpaperController', () => {
-  it('neutralizes the opaque app-root background while a wallpaper is mounted (#505)', () => {
+  it('neutralizes the opaque shell layout surfaces while a wallpaper is mounted (#505)', () => {
     const neutralizers = (): HTMLStyleElement[] =>
       [...document.head.querySelectorAll<HTMLStyleElement>('style[data-dsh-wallpaper-root]')]
     const { scope } = fakeScope()
@@ -97,7 +97,13 @@ describe('WallpaperController', () => {
     expect(neutralizers()).toHaveLength(0)
     controller.applySelection(video)
     expect(neutralizers()).toHaveLength(1)
-    expect(neutralizers()[0]!.textContent).toContain('[id="root"] { background: transparent; }')
+    const css = neutralizers()[0]!.textContent ?? ''
+    expect(css).toContain('[id="root"] { background: transparent; }')
+    // The app frame and the column seats are the real occluders (#505).
+    for (const seat of ['root', 'conversation', 'details', 'sidebar']) {
+      expect(css).toContain('[data-slot="' + seat + '"] > :first-child')
+    }
+    expect(css).toContain('background: transparent')
     // Tearing the wallpaper down restores the stock shell background.
     controller.clearSelection()
     expect(neutralizers()).toHaveLength(0)
