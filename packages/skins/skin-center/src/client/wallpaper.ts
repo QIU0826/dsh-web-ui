@@ -351,17 +351,28 @@ export class WallpaperController implements WallpaperHandle {
   }
 
   private ensureLayers(descriptor: WallpaperDescriptor): void {
-    // The stock shell paints an opaque background on the app root, which
-    // fully covers the negative-z wallpaper layers (issue #505). Neutralize
-    // it while a wallpaper is mounted — the same contract the v2 skin CSS
-    // pipeline appends for every skin (`[id="root"] { background:
-    // transparent }`). The id selector outranks the shell's class rule, and
-    // the token itself is left untouched so every other --dsw-alias-bg-base
-    // consumer keeps its color.
+    // The stock shell paints opaque backgrounds on its layout surfaces — the
+    // app frame (first child of [data-slot="root"]) and the conversation /
+    // details / sidebar seats — which fully cover the negative-z wallpaper
+    // layers (issue #505). Neutralizing only `#root` is not enough: the root
+    // is already transparent, the frame and the seats are the occluders
+    // (verified against DSH 0.1.0-rc.7: visible pixels 2.22% before, 63.13%
+    // after this rule set). The id-scoped structural selectors outrank the
+    // shell's class rules and survive its CSS-module hash changes, and the
+    // tokens themselves are left untouched so every other
+    // --dsw-alias-bg-base consumer keeps its color.
     if (this.rootNeutralizer === null) {
       this.rootNeutralizer = document.createElement('style')
       this.rootNeutralizer.dataset.dshWallpaperRoot = ''
-      this.rootNeutralizer.textContent = '[id="root"] { background: transparent; }'
+      this.rootNeutralizer.textContent = [
+        '[id="root"] { background: transparent; }',
+        '#root [data-slot="root"] > :first-child,',
+        '#root [data-slot="conversation"] > :first-child,',
+        '#root [data-slot="details"] > :first-child,',
+        '#root [data-slot="sidebar"] > :first-child {',
+        '  background: transparent;',
+        '}',
+      ].join('\n')
       document.head.appendChild(this.rootNeutralizer)
     }
     if (this.mediaLayer === null) {
